@@ -2,10 +2,10 @@
 [{<<"bcrypt">>,{pkg,<<"bcrypt">>,<<"1.2.1">>},1},
  {<<"gloom">>,
   {git,"https://github.com/frompinewood/gloom",
-       {ref,"928844f9f72d538e96a890026bfba0a7391629ca"}},
+       {ref,"b877a2075c8e6622863c493af5a3a14d66199b79"}},
   0},
- {<<"goldrush">>,{pkg,<<"goldrush">>,<<"0.1.9">>},2},
- {<<"lager">>,{pkg,<<"lager">>,<<"3.9.2">>},1},
+ {<<"goldrush">>,{pkg,<<"goldrush">>,<<"0.1.9">>},1},
+ {<<"lager">>,{pkg,<<"lager">>,<<"3.9.2">>},0},
  {<<"poolboy">>,{pkg,<<"poolboy">>,<<"1.5.2">>},2},
  {<<"ranch">>,{pkg,<<"ranch">>,<<"2.1.0">>},1}]}.
 [

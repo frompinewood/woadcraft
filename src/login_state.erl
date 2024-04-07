@@ -2,72 +2,77 @@
 -behavior(gen_statem).
 -export([start_link/2, init/1, callback_mode/0, terminate/3]).
 -export([
-    unauthorized/1, unauthorized/3,
-    authorized/1, authorized/3
+    login/1, login/3,
+    create/1, create/3,
+    find/1, find/3
 ]).
 -export([send/2]).
 
-start_link(Pid, Args) ->
-    gen_statem:start_link(?MODULE, [Pid, Args], []).
-
-%% state machine API
-init([Pid, _Args]) ->
-    {ok, unauthorized, Pid}.
+start_link(Pid, _) ->
+    gen_statem:start_link(?MODULE, [Pid], []).
 
 callback_mode() -> [state_functions, state_enter].
 
-terminate(shutdown, _, _) ->
-    ok;
-terminate(_Reason, _State, _Data) ->
-    ok.
+init([Pid]) ->
+    gloom:send(
+        Pid,
+        "##################################\n"
+        "|Welcome to the land of Woadcraft|\n"
+        "|(C) 2024 Micaiah Parker         |\n"
+        "##################################\n"
+        "\n"
+    ),
+    {ok, login, Pid}.
 
-%% states
-unauthorized(Pid) ->
+login(Pid) ->
     {keep_state, Pid}.
 
-unauthorized(enter, _State, Pid) ->
-    Prompt = [
-        {username,
-            "Welcome to a land of Woadcraft\n"
-            "\n"
-            "Please enter your username, or NEW if you are new\nEnter username: "}
-    ],
-    gloom:prompt(Pid, username, Prompt),
+login(enter, _, Pid) ->
+    PromptText =
+        "Enter your login username\n"
+        "or NEW to create a new login\n"
+        "Username: ",
+    gloom:prompt(Pid, username, [{username, PromptText}]),
     {keep_state, Pid};
-unauthorized(cast, {username, #{username := <<"NEW">>}}, Pid) ->
-    Prompt = [
+
+login(cast, {username, #{username := <<"NEW">>}}, Pid) ->
+    {next_state, create, Pid};
+
+login(cast, {username, #{username := User}}, Pid) ->
+    gloom:prompt(Pid, password, [{password, "Enter password: "}]),
+    {keep_state, {Pid, User}};
+
+login(cast, {password, #{password := Pass}}, {Pid, User}) ->
+    case gloom_user:verify(User, Pass) of
+        {ok, Id} -> {next_state, find, {Pid, Id}};
+        {error, bad_password} -> {keep_state, {Pid, User}};
+        {error, _} -> {keep_state, Pid}
+    end.
+
+create(Pid) -> {keep_state, Pid}.
+
+create(enter, _, Pid) ->
+    Prompts = [
         {username, "Enter username: "},
         {password, "Enter password: "}
     ],
-    gloom:prompt(Pid, new_user, Prompt),
+    gloom:prompt(Pid, create, Prompts),
     {keep_state, Pid};
-unauthorized(cast, {new_user, Creds}, Pid) ->
-    #{username := User, password := Pass} = Creds,
+
+create(cast, {create, #{username := User, password := Pass}}, Pid) ->
     case gloom_user:create(User, Pass) of
-        {ok, Id} ->
-            {next_state, authorized, {Pid, Id}};
-        {error, _} ->
-            gloom:send(Pid, "Registration failed."),
-            {repeat_state, Pid}
-    end;
-unauthorized(cast, {username, #{username := User}}, Pid) ->
-    Prompt = [{password, "Enter password: "}],
-    gloom:prompt(Pid, password, Prompt),
-    {keep_state, {Pid, User}};
-unauthorized(cast, {password, #{password := Pass}}, {Pid, User}) ->
-    case gloom_user:verify(User, Pass) of
-        {ok, Id} ->
-            {next_state, authorized, {Pid, Id}};
-        {error, _} ->
-            gloom:send(Pid, "Login failed."),
-            {repeat_state, Pid}
+        {ok, Id} -> {next_state, find, {Pid, Id}};
+        {error, _} -> {keep_state, Pid}
     end.
 
-authorized(State) ->
-    {keep_state, State}.
-authorized(enter, _, {Pid, _} = State) ->
-    gloom:send(Pid, "Authenticated!"),
-    {keep_state, State}.
+find({Pid, Id}) -> {keep_state, {Pid, Id}}.
+
+find(enter, _, {Pid, Id}) ->
+    gloom:send(Pid, "This game world does not yet exist and your location could not be found."),
+    gloom:send(Pid, close),
+    {keep_state, {Pid, Id}}.
+
+terminate(_, _, _) -> ok.
 
 %% gloom behavior
 send(Pid, Data) ->
