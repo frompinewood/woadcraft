@@ -2,7 +2,7 @@
 [{<<"bcrypt">>,{pkg,<<"bcrypt">>,<<"1.2.1">>},1},
  {<<"gloom">>,
   {git,"https://github.com/frompinewood/gloom",
-       {ref,"b877a2075c8e6622863c493af5a3a14d66199b79"}},
+       {ref,"6f80ed58a34974a8112faaab766e6d22b059b5ff"}},
   0},
  {<<"goldrush">>,{pkg,<<"goldrush">>,<<"0.1.9">>},1},
  {<<"lager">>,{pkg,<<"lager">>,<<"3.9.2">>},0},

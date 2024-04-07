@@ -3,8 +3,7 @@
 -export([start_link/2, init/1, callback_mode/0, terminate/3]).
 -export([
     login/1, login/3,
-    create/1, create/3,
-    find/1, find/3
+    create/1, create/3
 ]).
 -export([send/2]).
 
@@ -44,9 +43,13 @@ login(cast, {username, #{username := User}}, Pid) ->
 
 login(cast, {password, #{password := Pass}}, {Pid, User}) ->
     case gloom_user:verify(User, Pass) of
-        {ok, Id} -> {next_state, find, {Pid, Id}};
-        {error, bad_password} -> {keep_state, {Pid, User}};
-        {error, _} -> {keep_state, Pid}
+        {ok, Id} -> 
+            gloom:send(Pid, "Authenticated."),
+            {repeat_state, {Pid, Id}, [{push_callback_module, new_character_state}]};
+        {error, bad_password} -> 
+            gloom:send("Login failed."),
+            {repeat_state, {Pid, User}};
+        {error, _} -> {repeat_state, Pid}
     end.
 
 create(Pid) -> {keep_state, Pid}.
@@ -54,23 +57,24 @@ create(Pid) -> {keep_state, Pid}.
 create(enter, _, Pid) ->
     Prompts = [
         {username, "Enter username: "},
-        {password, "Enter password: "}
+        {password, "Enter password: "},
+        {confirm,  "Confirm password: "}
     ],
     gloom:prompt(Pid, create, Prompts),
     {keep_state, Pid};
 
-create(cast, {create, #{username := User, password := Pass}}, Pid) ->
+create(cast, {create, #{username := User, password := Pass, confirm := Pass}}, Pid) ->
     case gloom_user:create(User, Pass) of
-        {ok, Id} -> {next_state, find, {Pid, Id}};
-        {error, _} -> {keep_state, Pid}
-    end.
-
-find({Pid, Id}) -> {keep_state, {Pid, Id}}.
-
-find(enter, _, {Pid, Id}) ->
-    gloom:send(Pid, "This game world does not yet exist and your location could not be found."),
-    gloom:send(Pid, close),
-    {keep_state, {Pid, Id}}.
+        {ok, Id} -> 
+            gloom:send(Pid, "New account created!"),
+            {repeat_state, {Pid, Id}, [{push_callback_module, new_character_state}]};
+        {error, _} -> 
+            gloom:send(Pid, "Unable to create new account "++User),
+            {repeat_state, Pid}
+    end;
+create(cast, {create, #{pass := Pass, confirm := Pass}}, Pid) ->
+    gloom:send(Pid, "Password mismatch."),
+    {repeat_state, Pid}.
 
 terminate(_, _, _) -> ok.
 
